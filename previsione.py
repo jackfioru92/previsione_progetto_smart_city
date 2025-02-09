@@ -10,8 +10,14 @@ from sklearn.metrics import accuracy_score
 from sklearn.cluster import KMeans
 from sklearn.metrics import pairwise_distances_argmin_min
 
-# Carica il dataset
+# Carica il dataset delle città
 df = pd.read_csv('cities.csv')
+
+# Carica il dataset dei progetti
+progetti_df = pd.read_csv('Dati_progetti.csv')
+
+# Stampa i nomi delle colonne per il debug
+print(progetti_df.columns)
 
 # Preprocessa la colonna "Clima (range annuale)"
 def extract_temperature(clima):
@@ -73,14 +79,36 @@ def find_most_similar_city(new_city_features, kmeans, df):
     most_similar_city = cluster_data.iloc[int(indices[0])]['City']
     return most_similar_city
 
+# Funzione per trovare il progetto più adatto
+def find_best_project(city, budget, progetti_df):
+    city_projects = progetti_df[progetti_df['Città'] == city]
+    if city_projects.empty:
+        return "Nessun progetto trovato", ""
+    
+    project1_cost = city_projects['Costo progetto 1'].values[0]
+    project2_cost = city_projects['Costo progetto 2'].values[0]
+    
+    if project1_cost <= budget and (project1_cost <= project2_cost or project2_cost > budget):
+        project_name = city_projects['Nome progetto 1'].values[0]
+        project_scope = city_projects['Ambito progetto 1'].values[0]
+    elif project2_cost <= budget:
+        project_name = city_projects['Nome progetto 2'].values[0]
+        project_scope = city_projects['Ambito progetto 2'].values[0]
+    else:
+        return "Nessun progetto adatto trovato", ""
+    
+    return project_name, project_scope
+
 # Funzione per gestire l'inserimento dei dati tramite interfaccia grafica
 def submit():
     new_city = []
     for feature in numerical_columns:
         value = float(entries[feature].get())
         new_city.append(value)
+    budget = float(budget_entry.get())
     most_similar_city = find_most_similar_city(new_city, kmeans, df)
-    result_label.config(text=f"La città più simile è: {most_similar_city}")
+    project_name, project_scope = find_best_project(most_similar_city, budget, progetti_df)
+    result_label.config(text=f"La città più simile è: {most_similar_city}\nProgetto: {project_name}\nAmbito: {project_scope}")
 
 # Creazione dell'interfaccia grafica
 root = tk.Tk()

@@ -1,0 +1,4 @@
+3000	2200	800	-2°C / 25°C	10	1	11	40	500	3	1	2	4	3
+2800	2000	800	-1°C / 24°C	10	1	11	40	500	3	1	2	4	3
+5200	2300	1000	11	15	1	12	40	800	Capitale nazionale	Limitato	Moderato	Dominante	Forte
+
