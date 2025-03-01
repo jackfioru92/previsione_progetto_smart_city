@@ -1,0 +1,1 @@
+knn = NearestNeighbors(n_neighbors=1, metric='euclidean') 98% di errore
