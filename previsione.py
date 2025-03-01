@@ -8,6 +8,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.cluster import KMeans
 from sklearn.metrics import pairwise_distances_argmin_min
 from stile import applica_stile
+from animazioni import animate_transition
 
 # Carica il dataset delle città
 df = pd.read_csv('cities.csv')
@@ -214,12 +215,16 @@ class MainWindow(QMainWindow):
     def next_page(self):
         current_index = self.tab_widget.currentIndex()
         if current_index < self.tab_widget.count() - 1:
-            self.tab_widget.setCurrentIndex(current_index + 1)
+            next_index = current_index + 1
+            animate_transition(self.tab_widget, current_index, next_index)
+            self.tab_widget.setCurrentIndex(next_index)
     
     def previous_page(self):
         current_index = self.tab_widget.currentIndex()
         if current_index > 0:
-            self.tab_widget.setCurrentIndex(current_index - 1)
+            next_index = current_index - 1
+            animate_transition(self.tab_widget, current_index, next_index)
+            self.tab_widget.setCurrentIndex(next_index)
     
     def update_buttons(self):
         current_index = self.tab_widget.currentIndex()
