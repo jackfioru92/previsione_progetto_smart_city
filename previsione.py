@@ -1,100 +1,13 @@
 import sys
-import pandas as pd
-import numpy as np
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QTabWidget, QFormLayout
-from PyQt5.QtGui import QFont, QFontDatabase, QIcon, QPixmap
+from PyQt5.QtGui import QFont, QFontDatabase, QPixmap
 from PyQt5.QtCore import Qt
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.cluster import KMeans
-from sklearn.metrics import pairwise_distances_argmin_min
 from stile import applica_stile
 from animazioni import animate_transition
+from utils import load_data, find_most_similar_cities, find_best_project, validate_fields
 
-# Carica il dataset delle città
-df = pd.read_csv('cities.csv')
-
-# Carica il dataset dei progetti
-progetti_df = pd.read_csv('Dati_progetti.csv')
-
-# Preprocessa la colonna "Clima (range annuale)"
-def extract_temperature(clima):
-    min_temp, max_temp = clima.replace('°C', '').split(' / ')
-    return (float(min_temp) + float(max_temp)) / 2
-
-df['Clima (range annuale)'] = df['Clima (range annuale)'].apply(extract_temperature)
-
-# Mappa per la colonna "Importanza amministrativa"
-importance_map = {
-    'Capitale nazionale': 1,
-    'Capitale regionale': 2,
-    'Hub economico': 3,
-    'Centro culturale': 4,
-    'Centro turistico': 5,
-    'Città satellite': 6
-}
-
-# Mappa per le colonne "Primario", "Secondario", "Terziario" e "Quaternario"
-sector_map = {
-    'Limitato': 1,
-    'Moderato': 2,
-    'Forte': 3,
-    'Dominante': 4
-}
-
-df['Importanza amministrativa'] = df['Importanza amministrativa'].map(importance_map)
-df['Primario'] = df['Primario'].map(sector_map)
-df['Secondario'] = df['Secondario'].map(sector_map)
-df['Terziario'] = df['Terziario'].map(sector_map)
-df['Quaternario'] = df['Quaternario'].map(sector_map)
-
-numerical_columns = ['Densità di popolazione (ab/km²)', 'Costo della vita (€/mese)', 
-                     'Trasporto pubblico (unità totali)', 'Clima (range annuale)', 
-                     'Punti di interesse turistici', 'Aeroporti principali', 
-                     'Livello di inquinamento (PM2.5)', 'Età media (anni)', 
-                     'Media eventi annuali', 'Importanza amministrativa',
-                     'Primario', 'Secondario', 'Terziario', 'Quaternario']
-
-df = df.dropna(subset=numerical_columns)
-
-scaler = MinMaxScaler()
-df[numerical_columns] = scaler.fit_transform(df[numerical_columns])
-
-# Inizializzazione del modello KMeans con 50 cluster
-kmeans = KMeans(n_clusters=50, random_state=42)
-df['Cluster'] = kmeans.fit_predict(df[numerical_columns])
-
-# Funzione per trovare la città più simile
-def find_most_similar_city(new_city_features, kmeans, df):
-    new_city_scaled = scaler.transform([new_city_features])
-    new_city_cluster = kmeans.predict(new_city_scaled)
-    cluster_data = df[df['Cluster'] == new_city_cluster[0]]
-    if cluster_data.empty:
-        return "Nessuna città trovata"
-    distances, indices = pairwise_distances_argmin_min(new_city_scaled, cluster_data[numerical_columns], metric='euclidean')
-    if indices[0] >= len(cluster_data):
-        return "Nessuna città trovata"
-    most_similar_city = cluster_data.iloc[int(indices[0])]['City']
-    return most_similar_city
-
-# Funzione per trovare il progetto più adatto
-def find_best_project(city, budget, progetti_df):
-    city_projects = progetti_df[progetti_df['Città'] == city]
-    if city_projects.empty:
-        return "Nessun progetto trovato", ""
-    
-    project1_cost = city_projects['Costo progetto 1'].values[0]
-    project2_cost = city_projects['Costo progetto 2'].values[0]
-    
-    if project1_cost <= budget and (project1_cost <= project2_cost or project2_cost > budget):
-        project_name = city_projects['Nome progetto 1'].values[0]
-        project_scope = city_projects['Ambito progetto 1'].values[0]
-    elif project2_cost <= budget:
-        project_name = city_projects['Nome progetto 2'].values[0]
-        project_scope = city_projects['Ambito progetto 2'].values[0]
-    else:
-        return "Nessun progetto adatto trovato", ""
-    
-    return project_name, project_scope
+# Carica i dataset
+df, progetti_df, scaler, numerical_columns = load_data()
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -206,6 +119,12 @@ class MainWindow(QMainWindow):
         self.result_label.setFont(font)
         main_layout.addWidget(self.result_label, alignment=Qt.AlignCenter)
         
+        # Messaggio di errore
+        self.error_label = QLabel("")
+        self.error_label.setFont(font)
+        self.error_label.setStyleSheet("color: red;")
+        main_layout.addWidget(self.error_label, alignment=Qt.AlignCenter)
+        
         # Aggiorna i bottoni in base alla pagina corrente
         self.update_buttons()
         
@@ -233,14 +152,35 @@ class MainWindow(QMainWindow):
         self.submit_button.setVisible(current_index == self.tab_widget.count() - 1)
     
     def submit(self):
-        new_city = []
-        for feature in numerical_columns:
-            value = float(self.entries[feature].text())
-            new_city.append(value)
-        budget = float(self.budget_entry.text())
-        most_similar_city = find_most_similar_city(new_city, kmeans, df)
-        project_name, project_scope = find_best_project(most_similar_city, budget, progetti_df)
-        self.result_label.setText(f"La città più simile è: {most_similar_city}\nProgetto: {project_name}\nAmbito: {project_scope}")
+        """Gestisce la sottomissione del form."""
+        if not validate_fields(self.entries, self.budget_entry):
+            return
+            
+        try:
+            # Raccogli i dati inseriti
+            new_city = []
+            for feature in numerical_columns:
+                value = float(self.entries[feature].text())
+                new_city.append(value)
+            
+            budget = float(self.budget_entry.text())
+            
+            # Trova città simili (senza weights)
+            similar_cities = find_most_similar_cities(new_city, df, scaler, numerical_columns)
+            
+            result_text = "Le città più simili sono:\n"
+            for city, similarity in similar_cities:
+                result_text += f"{city}: {similarity:.2f}%\n"
+            
+            # Trova il progetto migliore per la città più simile
+            most_similar_city = similar_cities[0][0]
+            project_name, project_scope = find_best_project(most_similar_city, budget, progetti_df)
+            result_text += f"\nProgetto più adatto per {most_similar_city}:\n{project_name}\nAmbito: {project_scope}"
+            
+            self.result_label.setText(result_text)
+            
+        except ValueError as e:
+            self.result_label.setText("Errore: Inserisci solo valori numerici validi")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
