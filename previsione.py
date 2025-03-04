@@ -1,7 +1,7 @@
 import sys
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QLabel, QLineEdit, 
                             QPushButton, QVBoxLayout, QHBoxLayout, QWidget, 
-                            QTabWidget, QFormLayout)
+                            QTabWidget, QFormLayout, QComboBox)  # Aggiunto QComboBox
 from PyQt5.QtGui import QFont, QFontDatabase, QPixmap
 from PyQt5.QtCore import Qt
 from stile import applica_stile
@@ -69,7 +69,61 @@ class MainWindow(QMainWindow):
         
         # Entries dictionary
         self.entries = {}
-        
+
+        # Campo Smart City nella prima pagina
+        smart_city_label = QLabel("Ambito di intervento Smart City")
+        smart_city_label.setFont(font)
+
+        # Container per combo e input
+        smart_city_container = QWidget()
+        smart_city_layout = QVBoxLayout(smart_city_container)
+        smart_city_layout.setSpacing(5)
+        smart_city_layout.setContentsMargins(0,0,0,0)
+
+        # ComboBox per l'ambito
+        self.smart_city_combo = QComboBox()
+        self.smart_city_combo.setFont(font)
+        self.smart_city_combo.addItems([
+            "Smart_Mobility",
+            "Smart_Environment", 
+            "Smart_Economy",
+            "Smart_People",
+            "Smart_Living"
+        ])
+        self.smart_city_combo.setMaximumWidth(self.width() // 2)
+
+        # Assembla il layout
+        smart_city_layout.addWidget(self.smart_city_combo)
+
+        # Aggiungi alla prima pagina
+        self.page_layouts[0].addRow(smart_city_label, smart_city_container)
+
+        # Campo durata progetto
+        duration_label = QLabel("Aspettative durata progetto")
+        duration_label.setFont(font)
+
+        # Container per combo durata
+        duration_container = QWidget()
+        duration_layout = QVBoxLayout(duration_container)
+        duration_layout.setSpacing(5)
+        duration_layout.setContentsMargins(0,0,0,0)
+
+        # ComboBox per la durata
+        self.duration_combo = QComboBox()
+        self.duration_combo.setFont(font)
+        self.duration_combo.addItems([
+            "Breve (6 mesi - 3 anni)",
+            "Media (3 anni)",
+            "Lunga (più di 3 anni)"
+        ])
+        self.duration_combo.setMaximumWidth(self.width() // 2)
+
+        # Assembla il layout
+        duration_layout.addWidget(self.duration_combo)
+
+        # Aggiungi alla prima pagina dopo Smart City
+        self.page_layouts[0].addRow(duration_label, duration_container)
+
         # Layout temperature ridotto al 50%
         temp_layout = QHBoxLayout()
         temp_layout.setSpacing(0)

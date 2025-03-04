@@ -50,4 +50,22 @@ def applica_stile(app):
             background: {colore_titolo};
             color: {colore_testo_bottone};
         }}
+       QComboBox {{
+            background-color: {colore_bottone};
+            color: {colore_testo_bottone};
+            border-radius: 10px;
+            padding: 10px;
+            min-width: 100px;
+            padding-right: 20px;
+        }}
+        QComboBox::drop-down {{
+            border: none;
+            width: 20px;
+        }}
+         QComboBox::down-arrow {{
+            image: url(dropDown.png);
+            width: 18px;
+            height: 18px;
+            margin-right: 5px;
+        }}
     """)
