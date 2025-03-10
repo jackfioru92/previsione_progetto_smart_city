@@ -100,8 +100,8 @@ def find_most_similar_cities(new_city_features, df, scaler, numerical_columns):
         distances = pairwise_distances(weighted_data, weighted_new_city)
         similarities = 100 * (1 - (distances / distances.max()))
         
-        # Trova top 3
-        top_indices = np.argsort(similarities.flatten())[-3:][::-1]
+        # Trova top 5
+        top_indices = np.argsort(similarities.flatten())[-5:][::-1]
         
         similar_cities = []
         print("\nDETTAGLI SIMILARITÀ:")
@@ -123,38 +123,150 @@ def find_most_similar_cities(new_city_features, df, scaler, numerical_columns):
         print(f"Errore nel calcolo delle similarità: {e}")
         return [("Errore nell'analisi", 0)]
 
-def find_best_project(city, budget, progetti_df):
-    """Trova il progetto migliore dato budget e città."""
+def find_best_project(similar_cities, smart_city_scope, duration, progetti_df):
+    """
+    Trova il progetto migliore utilizzando i nomi esatti delle colonne del CSV.
+    """
     try:
-        city_projects = progetti_df[progetti_df['Città'] == city]
-        if city_projects.empty:
-            return "Nessun progetto trovato", ""
+        print("\nDEBUG - Parametri ricevuti:")
+        print(f"Smart City Scope: {smart_city_scope}")
+        print(f"Duration: {duration}")
+        print(f"Città simili: {similar_cities}")
         
-        projects = []
-        if 'Nome progetto 1' in progetti_df.columns:
-            projects.append((
-                city_projects['Nome progetto 1'].iloc[0],
-                city_projects['Ambito progetto 1'].iloc[0],
-                city_projects['Costo progetto 1'].iloc[0]
-            ))
+        found_projects = []
+        suggested_projects = []
+        result = []
         
-        if 'Nome progetto 2' in progetti_df.columns:
-            projects.append((
-                city_projects['Nome progetto 2'].iloc[0],
-                city_projects['Ambito progetto 2'].iloc[0],
-                city_projects['Costo progetto 2'].iloc[0]
-            ))
-
-        valid_projects = [(name, scope, cost) for name, scope, cost in projects if cost <= budget]
-        if not valid_projects:
-            return "Nessun progetto adatto trovato", ""
+        result.append("RICERCA PROGETTI SMART CITY")
+        result.append(f"Ambito richiesto: {smart_city_scope}")
+        result.append(f"Durata richiesta: {duration}\n")
+        
+        for city, similarity in similar_cities[:5]:
+            print(f"\nDEBUG - Analisi città: {city}")
+            result.append(f"\nANALISI {city} (Similarità: {similarity:.2f}%)")
             
-        best_project = min(valid_projects, key=lambda x: x[2])
-        return best_project[0], best_project[1]
+            # Verifica se la città è presente
+            if city not in progetti_df['Città'].values:
+                print(f"DEBUG - Città {city} non trovata in progetti_df")
+                result.append(f"⚠ {city} non ha progetti nel database")
+                continue
+            
+            city_projects = progetti_df[progetti_df['Città'] == city]
+            
+            # Analisi progetto 1
+            try:
+                project1_data = {
+                    'nome': city_projects['Nome progetto 1'].iloc[0],
+                    'ambito': city_projects['Ambito progetto 1'].iloc[0],
+                    'durata': city_projects['Tipo di investimento 1'].iloc[0],
+                    'descrizione': city_projects['Descrizione Progetto 1'].iloc[0],
+                    'stato': city_projects['Attivo / Non attivo progetto 1'].iloc[0]
+                }
+                
+                ambito_match1 = project1_data['ambito'] == smart_city_scope
+                durata_match1 = project1_data['durata'] == duration
+                
+                result.append(f"\nProgetto 1: {project1_data['nome']}")
+                result.append(f"Ambito: {project1_data['ambito']} {'✓' if ambito_match1 else '✗'}")
+                result.append(f"Durata: {project1_data['durata']} {'✓' if durata_match1 else '✗'}")
+                result.append(f"Stato: {project1_data['stato']}")
+                
+                project_info1 = {
+                    'Città': city,
+                    'Nome progetto': project1_data['nome'],
+                    'Ambito progetto': project1_data['ambito'],
+                    'Tipo di investimento': project1_data['durata'],
+                    'Descrizione': project1_data['descrizione'],
+                    'Stato': project1_data['stato'],
+                    'Similarità': similarity
+                }
+                
+                if ambito_match1 and durata_match1:
+                    result.append("→ Match perfetto!")
+                    found_projects.append(project_info1)
+                elif ambito_match1 or durata_match1:
+                    result.append("→ Match parziale")
+                    suggested_projects.append(project_info1)
+                
+            except Exception as e:
+                print(f"DEBUG - Errore analisi progetto 1: {str(e)}")
+            
+            # Analisi progetto 2
+            try:
+                project2_data = {
+                    'nome': city_projects['Nome proggetto 2'].iloc[0],
+                    'ambito': city_projects['Ambito progetto 2'].iloc[0],
+                    'durata': city_projects['Tipo di investimento 2'].iloc[0],
+                    'descrizione': city_projects['Descrizione progetto 2'].iloc[0],
+                    'stato': city_projects['Attivo / Non attivo progetto 2'].iloc[0]
+                }
+                
+                ambito_match2 = project2_data['ambito'] == smart_city_scope
+                durata_match2 = project2_data['durata'] == duration
+                
+                result.append(f"\nProgetto 2: {project2_data['nome']}")
+                result.append(f"Ambito: {project2_data['ambito']} {'✓' if ambito_match2 else '✗'}")
+                result.append(f"Durata: {project2_data['durata']} {'✓' if durata_match2 else '✗'}")
+                result.append(f"Stato: {project2_data['stato']}")
+                
+                project_info2 = {
+                    'Città': city,
+                    'Nome progetto': project2_data['nome'],
+                    'Ambito progetto': project2_data['ambito'],
+                    'Tipo di investimento': project2_data['durata'],
+                    'Descrizione': project2_data['descrizione'],
+                    'Stato': project2_data['stato'],
+                    'Similarità': similarity
+                }
+                
+                if ambito_match2 and durata_match2:
+                    result.append("→ Match perfetto!")
+                    found_projects.append(project_info2)
+                elif ambito_match2 or durata_match2:
+                    result.append("→ Match parziale")
+                    suggested_projects.append(project_info2)
+                
+            except Exception as e:
+                print(f"DEBUG - Errore analisi progetto 2: {str(e)}")
+        
+        # Risultati finali
+        result.append("\n" + "="*50 + "\n")
+        result.append("RISULTATI FINALI:")
+        
+        if not found_projects and not suggested_projects:
+            result.append("\n❌ Nessun progetto trovato con i parametri specificati")
+            
+        if found_projects:
+            result.append("\n✅ PROGETTI CON MATCH PERFETTO:")
+            for proj in found_projects:
+                result.extend([
+                    f"\nCittà: {proj['Città']} (Similarità: {proj['Similarità']:.2f}%)",
+                    f"Nome: {proj['Nome progetto']}",
+                    f"Ambito: {proj['Ambito progetto']}",
+                    f"Durata: {proj['Tipo di investimento']}",
+                    f"Stato: {proj['Stato']}",
+                    f"Descrizione: {proj['Descrizione']}"
+                ])
+        
+        if suggested_projects:
+            result.append("\n💡 PROGETTI ALTERNATIVI CONSIGLIATI:")
+            for proj in suggested_projects[:3]:
+                result.extend([
+                    f"\nCittà: {proj['Città']} (Similarità: {proj['Similarità']:.2f}%)",
+                    f"Nome: {proj['Nome progetto']}",
+                    f"Ambito: {proj['Ambito progetto']}",
+                    f"Durata: {proj['Tipo di investimento']}",
+                    f"Stato: {proj['Stato']}",
+                    f"Descrizione: {proj['Descrizione']}"
+                ])
+        
+        return "\n".join(result)
 
     except Exception as e:
-        print(f"Errore nella ricerca del progetto: {e}")
-        return "Errore nella ricerca", ""
+        print(f"DEBUG - Errore principale: {str(e)}")
+        import traceback
+        print(f"DEBUG - Traceback:\n{traceback.format_exc()}")
+        return "⚠ Errore durante la ricerca dei progetti"
 
 def validate_fields(entries, budget_entry):
     """Valida i campi input."""

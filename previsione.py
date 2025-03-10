@@ -253,27 +253,31 @@ class MainWindow(QMainWindow):
         self.continue_button.setVisible(current_index < self.tab_widget.count() - 1)
         self.submit_button.setVisible(current_index == self.tab_widget.count() - 1)
     
-    def submit(self):
+    def submit(self): 
         if not validate_fields(self.entries, self.budget_entry):
             return
             
         try:
+            # Raccogli i dati della città
             new_city = []
             for feature in numerical_columns:
                 value = float(self.entries[feature].text())
                 new_city.append(value)
             
-            budget = float(self.budget_entry.text())
+            # Ottieni le città simili e crea il testo iniziale
             similar_cities = find_most_similar_cities(new_city, df, scaler, numerical_columns)
-            
-            result_text = "Le città più simili sono:\n"
+            result_text = "\nCITTÀ PIÙ SIMILI:\n"
             for city, similarity in similar_cities:
                 result_text += f"{city}: {similarity:.2f}%\n"
+                
+            # Ottieni i parametri selezionati
+            smart_city_scope = self.smart_city_combo.currentText()
+            duration = self.duration_combo.currentText()
             
-            most_similar_city = similar_cities[0][0]
-            project_name, project_scope = find_best_project(most_similar_city, budget, progetti_df)
-            result_text += f"\nProgetto più adatto per {most_similar_city}:\n{project_name}\nAmbito: {project_scope}"
+            # Aggiungi i progetti trovati
+            result_text += "\n" + find_best_project(similar_cities, smart_city_scope, duration, progetti_df)
             
+            # Mostra il risultato
             self.result_label.setText(result_text)
             
         except ValueError as e:
