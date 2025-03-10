@@ -112,9 +112,9 @@ class MainWindow(QMainWindow):
         self.duration_combo = QComboBox()
         self.duration_combo.setFont(font)
         self.duration_combo.addItems([
-            "Breve (6 mesi - 3 anni)",
-            "Media (3 anni)",
-            "Lunga (più di 3 anni)"
+            "Breve termine (2 anni)",
+            "Medio termine (5 anni)",
+            "Lungo termine (10 anni)"
         ])
         self.duration_combo.setMaximumWidth(self.width() // 2)
 

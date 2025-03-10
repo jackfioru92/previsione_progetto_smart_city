@@ -9,7 +9,7 @@ def load_data():
     try:
         # Carica datasets
         df = pd.read_csv('cities.csv')
-        progetti_df = pd.read_csv('Dati_progetti.csv')
+        progetti_df = pd.read_csv('progetti_smart.csv')
 
         # Estrai temperature
         def extract_temperatures(clima):
