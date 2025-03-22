@@ -258,7 +258,7 @@ class MainWindow(QMainWindow):
             return
             
         try:
-            # Raccogli i dati della città
+        # Raccogli i dati della città
             new_city = []
             for feature in numerical_columns:
                 value = float(self.entries[feature].text())
@@ -277,11 +277,42 @@ class MainWindow(QMainWindow):
             # Aggiungi i progetti trovati
             result_text += "\n" + find_best_project(similar_cities, smart_city_scope, duration, progetti_df)
             
-            # Mostra il risultato
-            self.result_label.setText(result_text)
-            
+            # Mostra la finestra dei risultati
+            self.result_window = ResultWindow(result_text, self)
+            self.result_window.show()
+        
         except ValueError as e:
             self.result_label.setText("Errore: Inserisci solo valori numerici validi")
+
+class ResultWindow(QMainWindow):
+    def __init__(self, result_text, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Risultati Analisi")
+        self.setGeometry(150, 150, 800, 600)
+        
+        # Widget principale
+        main_widget = QWidget()
+        self.setCentralWidget(main_widget)
+        layout = QVBoxLayout(main_widget)
+        
+        # Area di testo scrollabile per i risultati
+        from PyQt5.QtWidgets import QScrollArea, QTextEdit
+        scroll = QScrollArea()
+        result_text_edit = QTextEdit()
+        result_text_edit.setReadOnly(True)
+        result_text_edit.setFont(QFont("Montserrat", 10))
+        result_text_edit.setText(result_text)
+        result_text_edit.setStyleSheet("border: none;")
+        scroll.setWidget(result_text_edit)
+        scroll.setWidgetResizable(True)
+        layout.addWidget(scroll)
+        
+        # Bottone indietro
+        back_button = QPushButton("Indietro")
+        back_button.setFont(QFont("Montserrat", 10))
+        back_button.setFixedWidth(100)
+        back_button.clicked.connect(self.close)
+        layout.addWidget(back_button, alignment=Qt.AlignCenter)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
