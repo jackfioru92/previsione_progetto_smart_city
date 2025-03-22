@@ -9,7 +9,7 @@ from animazioni import animate_transition
 from utils import load_data, find_most_similar_cities, find_best_project, validate_fields
 
 # Carica i dataset
-df, progetti_df, scaler, numerical_columns = load_data()
+df, progetti_df, finanziamenti_eu_df, scaler, numerical_columns, province = load_data()
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -123,7 +123,29 @@ class MainWindow(QMainWindow):
 
         # Aggiungi alla prima pagina dopo Smart City
         self.page_layouts[0].addRow(duration_label, duration_container)
+        
+        # Aggiungi la ComboBox per le province
+        province_label = QLabel("Provincia della tua città")
+        province_label.setFont(font)
 
+        # Container per combo province
+        province_container = QWidget()
+        province_layout = QVBoxLayout(province_container)
+        province_layout.setSpacing(5)
+        province_layout.setContentsMargins(0,0,0,0)
+
+        # ComboBox per le province
+        self.province_combo = QComboBox()
+        self.province_combo.setFont(font)
+        self.province_combo.addItems(province)
+        self.province_combo.setMaximumWidth(self.width() // 2)
+
+        # Assembla il layout
+        province_layout.addWidget(self.province_combo)
+
+        # Aggiungi alla prima pagina dopo la durata
+        self.page_layouts[0].addRow(province_label, province_container)
+        
         # Layout temperature ridotto al 50%
         temp_layout = QHBoxLayout()
         temp_layout.setSpacing(0)
@@ -273,6 +295,10 @@ class MainWindow(QMainWindow):
             # Ottieni i parametri selezionati
             smart_city_scope = self.smart_city_combo.currentText()
             duration = self.duration_combo.currentText()
+            provincia = self.province_combo.currentText()
+        
+            # Aggiungi la provincia al testo dei risultati
+            result_text += f"\nProvincia selezionata: {provincia}\n"
             
             # Aggiungi i progetti trovati
             result_text += "\n" + find_best_project(similar_cities, smart_city_scope, duration, progetti_df)
