@@ -5,13 +5,15 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import pairwise_distances
 
 def load_data():
-    """Carica e preprocessa i dati delle città."""
+    """Carica e preprocessa i dati delle città e dei progetti."""
     try:
-        # Carica datasets
+        # Carica dataset principale città
         df = pd.read_csv('cities.csv')
+        
+        # Carica dataset progetti smart
         progetti_df = pd.read_csv('progetti_smart.csv')
 
-        # Estrai temperature
+        # Estrai temperature dal campo clima
         def extract_temperatures(clima):
             min_temp, max_temp = map(float, clima.replace('°C', '').split(' / '))
             return min_temp, max_temp
@@ -20,9 +22,40 @@ def load_data():
             df['Clima (range annuale)'].apply(extract_temperatures).tolist(),
             columns=['Temp_Min', 'Temp_Max']
         )
+        
+        # Carica dataset finanziamenti EU (solo colonne necessarie)
+        finanziamenti_eu_df = pd.read_excel(
+            'projects_2025-02-15_IT_con_codifica.xlsx',
+            sheet_name='projects_2025-02-15_IT',
+            usecols=[
+                'Operation_Unique_Identifier',
+                'Region3',
+                'Total_Eligible_Expenditure_amount',
+                'Project_EU_Budget',
+                'Category_Label'
+            ]
+        )
+        categorie_df = pd.read_excel(
+            'projects_2025-02-15_IT_con_codifica.xlsx',
+            sheet_name='projects_2025-02-15_IT_con codi'
+        )
+        
+        # Pulizia e ordinamento province
+        finanziamenti_eu_df['Region3'] = finanziamenti_eu_df['Region3'].fillna('Non specificata')
+        # Converti tutti i valori in stringa
+        finanziamenti_eu_df['Region3'] = finanziamenti_eu_df['Region3'].astype(str)
+        # Rimuovi eventuali .0 dai numeri convertiti in stringa
+        finanziamenti_eu_df['Region3'] = finanziamenti_eu_df['Region3'].apply(lambda x: x.replace('.0', '') if x.endswith('.0') else x)
+        province = sorted(finanziamenti_eu_df['Region3'].unique())
 
-        # Mappature
-        sector_map = {'Limitato': 1, 'Moderato': 2, 'Forte': 3, 'Dominante': 4}
+        # Mappature per conversione dati categorici
+        sector_map = {
+            'Limitato': 1,
+            'Moderato': 2,
+            'Forte': 3,
+            'Dominante': 4
+        }
+        
         importance_map = {
             'Capitale nazionale': 4,
             'Capitale regionale': 3,
@@ -31,11 +64,12 @@ def load_data():
             'Città satellite': 1
         }
 
-        # Converti categorie
+        # Converti campi categorici in numerici
         df['Importanza amministrativa'] = df['Importanza amministrativa'].map(importance_map)
         for col in ['Primario', 'Secondario', 'Terziario', 'Quaternario']:
             df[col] = df[col].map(sector_map)
 
+        # Definizione colonne numeriche per analisi
         numerical_columns = [
             'Densità di popolazione (ab/km²)',
             'Costo della vita (€/mese)',
@@ -47,16 +81,24 @@ def load_data():
             'Età media (anni)',
             'Media eventi annuali',
             'Importanza amministrativa',
-            'Primario', 'Secondario', 'Terziario', 'Quaternario'
+            'Primario', 'Secondario',
+            'Terziario', 'Quaternario'
         ]
 
+        # Rimozione righe con dati mancanti
         df = df.dropna(subset=numerical_columns)
         
-        # Normalizza dati
+        # Normalizzazione dei dati numerici
         scaler = MinMaxScaler()
         df[numerical_columns] = scaler.fit_transform(df[numerical_columns])
 
-        return df, progetti_df, scaler, numerical_columns
+        print("Dati caricati con successo:")
+        print(f"- Città analizzate: {len(df)}")
+        print(f"- Progetti smart: {len(progetti_df)}")
+        print(f"- Finanziamenti EU: {len(finanziamenti_eu_df)}")
+        print(f"- Province disponibili: {len(province)}")
+
+        return df, progetti_df, finanziamenti_eu_df, categorie_df, scaler, numerical_columns, province
 
     except Exception as e:
         print(f"Errore durante il caricamento dei dati: {e}")
@@ -267,7 +309,73 @@ def find_best_project(similar_cities, smart_city_scope, duration, progetti_df):
         import traceback
         print(f"DEBUG - Traceback:\n{traceback.format_exc()}")
         return "⚠ Errore durante la ricerca dei progetti"
-
+    
+def get_available_funding(provincia, smart_city_scope, finanziamenti_eu_df, categorie_df):
+    """Trova i finanziamenti disponibili per provincia e categoria smart city."""
+    try:
+        print("\nDEBUG - Analisi finanziamenti:")
+        print(f"Provincia richiesta: {provincia}")
+        print(f"Categoria Smart City originale: {smart_city_scope}")
+        
+        # Converti da Smart_Governance a Smart Governance per il confronto
+        smart_city_scope_excel = smart_city_scope.replace('_', ' ')
+        print(f"Categoria Smart City convertita per confronto: {smart_city_scope_excel}")
+        
+        # Verifica presenza categoria in categorie_df
+        print(f"\nDEBUG - Categorie disponibili: {categorie_df['Category_Smart'].unique()}")
+        if smart_city_scope_excel not in categorie_df['Category_Smart'].values:
+            print(f"DEBUG - Categoria {smart_city_scope_excel} non trovata in categorie_df")
+            return f"\nNessuna corrispondenza trovata per la categoria {smart_city_scope}"
+        
+        # Join tra i dataframe per ottenere la corrispondenza categoria
+        categoria_corrispondente = categorie_df[
+            categorie_df['Category_Smart'].str.strip() == smart_city_scope_excel
+        ]['Category_Label'].values
+        
+        
+        print(f"\nDEBUG - Categorie corrispondenti trovate: {categoria_corrispondente}")
+        
+        # Verifica presenza provincia
+        print(f"\nDEBUG - Province disponibili: {finanziamenti_eu_df['Region3'].unique()}")
+        if provincia not in finanziamenti_eu_df['Region3'].values:
+            print(f"DEBUG - Provincia {provincia} non trovata in finanziamenti_eu_df")
+            return f"\nNessun finanziamento trovato per la provincia {provincia}"
+        
+        # Filtra i finanziamenti per provincia e categoria
+        finanziamenti_disponibili = finanziamenti_eu_df[
+            (finanziamenti_eu_df['Region3'] == provincia) & 
+            (finanziamenti_eu_df['Category_Label'].isin(categoria_corrispondente))
+        ]
+        
+        print(f"\nDEBUG - Finanziamenti trovati: {len(finanziamenti_disponibili)}")
+        
+        if finanziamenti_disponibili.empty:
+            print("DEBUG - Nessun finanziamento trovato con i criteri specificati")
+            return "\nNessun finanziamento disponibile per questa combinazione di provincia e categoria."
+        
+        # Prepara il testo dei risultati
+        result = f"\nFINANZIAMENTI DISPONIBILI PER LA PROVINCIA {provincia}\n"
+        result += f"CATEGORIA SMART CITY: {smart_city_scope}\n\n"
+        
+        for idx, finanziamento in finanziamenti_disponibili.iterrows():
+            print(f"\nDEBUG - Elaborazione finanziamento {idx}")
+            try:
+                result += "=" * 50 + "\n"
+                result += f"URL Progetto: {finanziamento['Operation_Unique_Identifier']}\n"
+                result += f"Spesa Totale Ammissibile: {finanziamento['Total_Eligible_Expenditure_amount']:,.2f} €\n"
+                result += f"Budget EU Stanziato: {finanziamento['Project_EU_Budget']:,.2f} €\n"
+            except Exception as e:
+                print(f"DEBUG - Errore nell'elaborazione del finanziamento {idx}: {e}")
+                continue
+            
+        return result
+        
+    except Exception as e:
+        print(f"DEBUG - Errore nell'analisi dei finanziamenti: {e}")
+        import traceback
+        print(f"DEBUG - Traceback completo:\n{traceback.format_exc()}")
+        return "Errore nell'analisi dei finanziamenti disponibili"
+    
 def validate_fields(entries, budget_entry):
     """Valida i campi input."""
     return all(entry.text().strip() for entry in entries.values()) and budget_entry.text().strip()

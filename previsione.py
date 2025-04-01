@@ -6,10 +6,11 @@ from PyQt5.QtGui import QFont, QFontDatabase, QPixmap
 from PyQt5.QtCore import Qt
 from stile import applica_stile
 from animazioni import animate_transition
-from utils import load_data, find_most_similar_cities, find_best_project, validate_fields
+from utils import (load_data, find_most_similar_cities, find_best_project, 
+                  validate_fields, get_available_funding)
 
 # Carica i dataset
-df, progetti_df, finanziamenti_eu_df, scaler, numerical_columns, province = load_data()
+df, progetti_df, finanziamenti_eu_df, categorie_df, scaler, numerical_columns, province = load_data()
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -84,6 +85,7 @@ class MainWindow(QMainWindow):
         self.smart_city_combo = QComboBox()
         self.smart_city_combo.setFont(font)
         self.smart_city_combo.addItems([
+            "Smart_Governance",
             "Smart_Mobility",
             "Smart_Environment", 
             "Smart_Economy",
@@ -302,6 +304,21 @@ class MainWindow(QMainWindow):
             
             # Aggiungi i progetti trovati
             result_text += "\n" + find_best_project(similar_cities, smart_city_scope, duration, progetti_df)
+            
+            # Mostra la finestra dei risultati
+            self.result_window = ResultWindow(result_text, self)
+            self.result_window.show()
+        
+            # Ottieni i parametri selezionati
+            smart_city_scope = self.smart_city_combo.currentText()
+            duration = self.duration_combo.currentText()
+            provincia = self.province_combo.currentText()
+            
+            # Aggiungi i risultati dei progetti simili
+            result_text += "\n" + find_best_project(similar_cities, smart_city_scope, duration, progetti_df)
+            
+            # Aggiungi i finanziamenti disponibili
+            result_text += "\n" + get_available_funding(provincia, smart_city_scope, finanziamenti_eu_df, categorie_df)
             
             # Mostra la finestra dei risultati
             self.result_window = ResultWindow(result_text, self)
